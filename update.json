@@ -1,0 +1,11 @@
+{
+  "version": "0.6.0",
+  "device": "cp3",
+  "update_file": "update.bin",
+  "file_size": 1234567,
+  "checksum": "abc123def456gh7890",
+  "release_notes": "Bug fixes and performance improvements",
+  "timestamp": "2024-11-30T02:51:56Z",
+  "update_url": "http://iot.videntify.ai/firmware/cp3/update.bin",
+  "requires_reboot": true
+}
