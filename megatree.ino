@@ -36,7 +36,7 @@ bool startOTAUpdate = false;
 // Define LED parameters
 #define LED_TYPE    WS2813
 #define COLOR_ORDER GRB
-#define BRIGHTNESS  128
+#define BRIGHTNESS  64
 #define MIN_BRIGHTNESS 40
 #define LEDS_PER_COL 14
 
@@ -76,7 +76,7 @@ unsigned long previousMillisLR = 0;
 unsigned long previousMillisDisplayVoltage = 0;
 unsigned long previousMillisDNS = 0;
 unsigned long previousMillisIsConnectingWifi = 0;
-unsigned long preloadMillisEnd = millis() + 5000;
+unsigned long preloadMillisEnd = millis() + 8000;
 
 // Factory reset
 const int buttonPin = 15; // GPIO pin where the button is connected
@@ -145,6 +145,7 @@ char selectedPassword[64];
 bool connectToWiFi = false;
 bool hasInternet = false;
 bool isPreloading = true;
+bool initialBrightnessSet = false;
 
 const char index_html[] PROGMEM = R"=====(
 <!DOCTYPE html>
@@ -855,7 +856,7 @@ void setup() {
   Serial.println(millis());
   Serial.print("\n");
 
-  delay(2000);
+  delay(1000);
 
   // analogSetAttenuation(ADC_0db);
   analogReadResolution(12); // Set ADC resolution
@@ -867,9 +868,6 @@ void setup() {
   Serial.println("\nSelected Theme: " + String(selectedTheme));
 
   //set up leds
-  const int brightness = get_nvs_brightness();
-  Serial.println("\nLED brightness: " + String(brightness));
-  FastLED.setBrightness(brightness);
   FastLED.setMaxRefreshRate(0);
 
   FastLED.addLeds<LED_TYPE, LED_LF_PIN, COLOR_ORDER>(lfLeds, NUM_LF_LEDS);
@@ -1306,6 +1304,13 @@ void loop() {
   }
 
   if(!isPreloading) {
+    if(!initialBrightnessSet) {
+      const int brightness = 65;//get_nvs_brightness();
+      Serial.println("\nLED brightness: " + String(brightness)); //hardcoded because mega is pulling limit current from 3V pack.  A high starting brightness causes problems.
+      FastLED.setBrightness(brightness);
+      initialBrightnessSet = true;
+    }
+
     switch(selectedTheme) {
       case 1:
         themeChristmasFlash(currentMillis);
@@ -1326,16 +1331,20 @@ void loop() {
       default:
         break;
     }
+
+     // Log battery voltage and adjust LED brightness
+    if(currentMillis - previousMillisDisplayVoltage >= 2000) {
+      logBatteryVoltage();
+      previousMillisDisplayVoltage = currentMillis;
+    }
   }  
 
-  if((currentMillis - preloadMillisEnd >= 3000) && isPreloading == true) {
+  if((currentMillis - preloadMillisEnd >= 7000) && isPreloading) {
+    Serial.println("CurrentMillis: " + String(currentMillis) + "\n");
+    Serial.println("preloadMillisEnd: " + String(preloadMillisEnd) + "\n");
+    Serial.println("\nSetting Preload False");
     isPreloading = false;
     preloadMillisEnd = 0;
-  }
-  // Log battery voltage and adjust LED brightness
-  if(currentMillis - previousMillisDisplayVoltage >= 2000) {
-    logBatteryVoltage();
-    previousMillisDisplayVoltage = currentMillis;
   }
 
   // Check for factory reset
@@ -1461,15 +1470,17 @@ void turnOffAllLeds() {
 }
 
 void led_preload() {
+  Serial.println("\nled_preload started");
   preloadMillisEnd = millis();
-  FastLED.setBrightness(50);
+  FastLED.setBrightness(40);
   for(int i = 0; i < LEDS_PER_COL; i++) {
-    lfLeds[i] = CRGB::Black; // Set each LED to black (off)
-    rfLeds[i] = CRGB::DarkRed; // Set each LED to black (off)
-    lrLeds[i] = CRGB::Black; // Set each LED to black (off)
+    lfLeds[i] = CRGB::DarkRed; // Set each LED to black (off)
+    rfLeds[i] = CRGB::DarkGreen; // Set each LED to black (off)
+    lrLeds[i] = CRGB::DarkRed; // Set each LED to black (off)
     rrLeds[i] = CRGB::DarkGreen; // Set each LED to black (off)
   }
   FastLED.show(); // Update the LED strip
+  Serial.println("\nled_preload finished");
 }
 
 void themeChristmasFlash(unsigned long currentMillis) {
